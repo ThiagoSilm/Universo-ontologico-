@@ -310,6 +310,7 @@ export class UniverseCore {
     // 2. Alocar HistoryBuffer para todos os nós (Causalidade)
     for (const p of this.particles) {
       p.historyBuffer = [{ x: p.x, y: p.y, tick: 0 }];
+      p.positionHistory = [{ x: p.x, y: p.y, tick: 0 }];
       p.isLatent = false; // Despertar imediato
       // Injetar Assimetria Primária (Chute inicial)
       p.vx += (Math.random() - 0.5) * this.C * 0.5;
@@ -432,13 +433,15 @@ export class UniverseCore {
   }
 
   public tick() {
+    const start = performance.now();
+    this.tickCount++; // Increment clock first to ensure Atemporalidade is fixed
+    
+    if (this.isHardLocked) return; // Shabbat Lock (Rest after increment)
+
     if (this.samplingRate < 1.0 && Math.random() > this.samplingRate) {
-      // Skip heavy processing, just update clock
-      this.tickCount++;
+      // Skip heavy processing
       return;
     }
-    const start = performance.now();
-    this.tickCount++;
     
     // ── ENTROPY FLUX MONITOR (v14.9) ──
     this.calculateShannonEntropy();
@@ -501,7 +504,7 @@ export class UniverseCore {
             p.isLatent = false;
             p.persistence = 0.1; // Estado Lógico "0" (v.4)
           }
-          p.persistence = Math.min(1.0, p.persistence + will);
+          p.persistence = Math.max(0.1, Math.min(10.20, p.persistence + will));
         }
       },
       espirito: {
@@ -675,21 +678,25 @@ export class UniverseCore {
 
     const currentActivityLevel = this.activeParticles.size / (this.particles.length || 1);
     // Expansão Cósmica Inexorável: Superior a tudo, nunca para, nunca tem pressa.
-    // A expansão é constante e fundamental.
-    const expansionRate = this.effectiveLAMBDA * (this.tickCount < 1000 ? 2.0 : 1.0);
+    // v15.4: Atuador de Amortecimento (Damping Factor) para evitar Supercrítica.
+    const dampingFactor = Math.max(0.1, 1.0 - (this.shannonEntropy / 10));
+    const expansionRate = Math.min(0.05, this.effectiveLAMBDA * (this.tickCount < 1000 ? 2.0 : 1.0) * dampingFactor);
     this.expansionRate = expansionRate;
 
     for (const p of this.activeParticles) {
       // 1. Expansão do Espaço (Λ) - A força superior
       // O espaço se expande independentemente da matéria
       if (!p.isBlackHole) {
-        p.x *= (1 + expansionRate);
-        p.y *= (1 + expansionRate);
+        // v15.4: Math.clamp implícito via limites de escala
+        const expansionStep = 1 + expansionRate;
+        p.x *= expansionStep;
+        p.y *= expansionStep;
         
         // Inércia Refinada: A expansão do vácuo acelera as partículas.
-        // Uma vez que pegam velocidade, elas "aumentam e aumentam" devido ao fluxo do espaço.
-        p.vx *= (1 + expansionRate * 0.8);
-        p.vy *= (1 + expansionRate * 0.8);
+        // v15.4: Limite de C e Amortecimento de Inércia
+        const inertiaDamping = 0.99; // Atrito do vácuo primordial
+        p.vx = (p.vx * (1 + expansionRate * 0.8)) * inertiaDamping;
+        p.vy = (p.vy * (1 + expansionRate * 0.8)) * inertiaDamping;
       }
 
       // 2. Tempo Próprio & Relatividade (c)
@@ -719,7 +726,12 @@ export class UniverseCore {
         p.x += p.vx * this.DT;
         p.y += p.vy * this.DT;
         
-        // ── Exploratory Dynamics: State Space Search ──────────────────
+        // v15.4: Hard-Link Espaço-Tempo (Garantia de Registro)
+        if (!p.historyBuffer) p.historyBuffer = [];
+        if (this.tickCount % 2 === 0) {
+          p.historyBuffer.push({ x: p.x, y: p.y, tick: this.tickCount });
+          if (p.historyBuffer.length > 50) p.historyBuffer.shift();
+        }
         // Particles explore local configurations to maximize persistence.
         // This is "learning without consciousness" via local feedback.
         if (this.tickCount % 5 === 0) {

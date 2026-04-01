@@ -68,9 +68,9 @@ function tick() {
     // Technology (represented by activeTracesCount) affects Gravity
     // Culture (represented by totalSelfEnergy) affects Lambda
     
-    const entropyFactor = Math.max(0.1, 1.0 - (snapshot.metrics.decisionsPerTick / 1000));
-    const gFactor = 1.0 + (snapshot.metrics.activeTracesCount / 5000);
-    const lambdaFactor = 1.0 + (snapshot.metrics.totalSelfEnergy / 100000);
+    const entropyFactor = Math.max(0.1, Math.min(2.0, 1.0 - (snapshot.metrics.decisionsPerTick / 1000)));
+    const gFactor = Math.max(0.5, Math.min(5.0, 1.0 + (snapshot.metrics.activeTracesCount / 5000)));
+    const lambdaFactor = Math.max(0.1, Math.min(10.0, 1.0 + (snapshot.metrics.totalSelfEnergy / 100000)));
     
     core.applyPhysicsInfluence(gFactor, lambdaFactor, entropyFactor);
     
