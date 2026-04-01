@@ -12,6 +12,8 @@ const STORAGE_KEY = "lazy_universe_state_v14";
 // ═══════════════════════════════════════════════════════════════════
 
 function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, state: UniverseState) {
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return;
+
   // Fundo preto com opacidade para rastro (motion blur)
   // Ciclo de LUZ/TREVAS afeta a densidade do vácuo visual
   const isNight = state.userClock?.cycle === 'TREVAS';
@@ -37,31 +39,59 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
 
   const cx = w / 2;
   const cy = h / 2;
-  const scale = Math.min(w, h) / 1000;
+
+  // v14.9.6: Recessão de Perspectiva Logarítmica (Buffer de Escala Invariante)
+  // À medida que o universo cresce, a câmera recua para manter a densidade constante.
+  const t = state.tick || 1;
+  const logRecession = 1 / (1 + Math.log10(1 + t * 0.01));
+  
+  // Vincular o Z-axis ao Vetor de Expansão (Câmera de Inércia)
+  // O observador é expelido para trás pela pressão da criação.
+  const expansion = state.expansionRate || 0.0005;
+  const inertialRecess = 1 / (1 + (expansion * t * 0.5));
+  
+  const combinedAutoZoom = logRecession * inertialRecess;
+  const userZoom = state.zoom || 1;
+  
+  // Escala final: Combina a métrica euclidiana com o Minkowski Dinâmico
+  const scale = (Math.min(w, h) / 1000) * userZoom * combinedAutoZoom;
+  if (!Number.isFinite(scale) || scale <= 0) return;
 
   const toX = (x: number) => cx + x * scale;
   const toY = (y: number) => cy + y * scale;
 
   ctx.save();
+  // v14.9.6: Ajuste de Brilho Dinâmico (Anti-Saturação)
+  // Se houver muitas partículas, reduzimos a opacidade global para evitar o "white-out".
+  const bitDensity = state.particles.length / 2000;
+  const globalOpacity = Math.max(0.2, Math.min(1.0, 1 / (1 + bitDensity * 0.5)));
+  ctx.globalAlpha = globalOpacity;
+
   ctx.globalCompositeOperation = 'lighter';
 
   // 1. O Centro (A Primeira Formação - "Eu Sou")
-  const centerGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 50 * scale);
-  centerGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  centerGradient.addColorStop(0.2, 'rgba(200, 220, 255, 0.8)');
-  centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = centerGradient;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 50 * scale, 0, Math.PI * 2);
-  ctx.fill();
+  const centerRadius = 50 * scale;
+  if (Number.isFinite(cx) && Number.isFinite(cy) && Number.isFinite(centerRadius) && centerRadius > 0) {
+    const centerGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, centerRadius);
+    centerGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    centerGradient.addColorStop(0.2, 'rgba(200, 220, 255, 0.8)');
+    centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = centerGradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // 2. O Horizonte Causal (Borda Translúcida)
   const horizonRadius = 450 * scale;
-  ctx.strokeStyle = `rgba(100, 150, 255, ${0.1 + (state.expansionRate || 0) * 10})`;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, horizonRadius, 0, Math.PI * 2);
-  ctx.stroke();
+  if (Number.isFinite(horizonRadius) && horizonRadius > 0) {
+    const expansion = Number.isFinite(state.expansionRate) ? state.expansionRate : 0;
+    ctx.strokeStyle = `rgba(100, 150, 255, ${0.1 + (expansion || 0) * 10})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, horizonRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   // 2.5 Visualize Scalar Field Φ (Probability Manifold)
   if (state.scalarFieldPhi) {
@@ -70,7 +100,8 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
     const cellH = ctx.canvas.height / fieldRes;
     
     // Entropy Gradient: Transição de Ruído Térmico para Estrutura Coerente
-    const entropyFactor = Math.max(0, 1 - (state.shannonEntropy || 0) / 4);
+    const entropy = Number.isFinite(state.shannonEntropy) ? state.shannonEntropy : 0;
+    const entropyFactor = Math.max(0, 1 - (entropy || 0) / 4);
     
     for (let y = 0; y < fieldRes; y++) {
       for (let x = 0; x < fieldRes; x++) {
@@ -87,9 +118,16 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
   }
 
   // 3. As Ondas de Complexidade (Partículas como campos)
-  for (const p of state.particles) {
+  // v14.9.6: MIP-mapping de eventos (Agrupamento de dados)
+  // Se a densidade for muito alta ou o zoom for muito baixo, pulamos partículas para evitar Saturação de Luminância.
+  const skipRate = Math.max(1, Math.floor(state.particles.length / (2000 * combinedAutoZoom)));
+
+  for (let i = 0; i < state.particles.length; i += skipRate) {
+    const p = state.particles[i];
     const px = toX(p.x);
     const py = toY(p.y);
+
+    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
 
     if (p.isLatent) {
       // Infraestrutura Latente: Estrelas (Recursos alocados mas não atribuídos)
@@ -107,9 +145,11 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
     const hue = (p.phase / (Math.PI * 2)) * 360;
     const persistence = p.persistence || 0;
     const radius = Math.max(2, persistence * 15) * scale;
+    if (!Number.isFinite(radius) || radius <= 0) continue;
 
     // Dia 5: Processos Dinâmicos (Animais)
     if (p.runtimeState === 'RUNNING') {
+
       if (p.isMiddleware) {
         // Aves: Middleware (Firmamento) - Cor Ciano/Branco
         const grad = ctx.createRadialGradient(px, py, 0, px, py, radius * 1.5);
@@ -443,10 +483,14 @@ export default function App() {
       await audioRef.current.init();
       audioRef.current.resume();
     }
-    if (mousePosRef.current) {
-      engineRef.current?.setMouseFocus(mousePosRef.current);
-    } else {
-      engineRef.current?.setMouseFocus({ x: 0, y: 0 });
+    
+    if (engineRef.current) {
+      engineRef.current.init();
+      if (mousePosRef.current) {
+        engineRef.current.setMouseFocus(mousePosRef.current);
+      } else {
+        engineRef.current.setMouseFocus({ x: 0, y: 0 });
+      }
     }
   };
 

@@ -293,6 +293,33 @@ export class UniverseCore {
     this.initialize(initialParticles);
   }
 
+  public ignite() {
+    // Gênesis 1:3 - Fiat Lux (Ignição Primária)
+    this.status = 'COLAPSADO';
+    this.tickCount = 0;
+    this.expansionStarted = true;
+    this.isHardLocked = false;
+    this.homeostasisCounter = 0;
+
+    // 1. Injetar Flutuação de Ponto Zero (E_vac > 0)
+    // Sem esse ruído inicial, o sistema atingiria a Morte Térmica no milissegundo zero.
+    for (let i = 0; i < this.scalarFieldPhi.length; i++) {
+      this.scalarFieldPhi[i] = (Math.random() - 0.5) * 0.2;
+    }
+
+    // 2. Alocar HistoryBuffer para todos os nós (Causalidade)
+    for (const p of this.particles) {
+      p.historyBuffer = [{ x: p.x, y: p.y, tick: 0 }];
+      p.isLatent = false; // Despertar imediato
+      // Injetar Assimetria Primária (Chute inicial)
+      p.vx += (Math.random() - 0.5) * this.C * 0.5;
+      p.vy += (Math.random() - 0.5) * this.C * 0.5;
+    }
+
+    this.sinodoLog.push({ tick: 0, message: "Sínodo: Fiat Lux. Ignição Primária executada (v14.9.4)." });
+    this.recentEvents.push("Gênesis: Transição de Fase (Não-Ser -> Ser).");
+  }
+
   private initialize(count: number) {
     let r = this.seed;
     const nextR = () => {
@@ -650,6 +677,7 @@ export class UniverseCore {
     // Expansão Cósmica Inexorável: Superior a tudo, nunca para, nunca tem pressa.
     // A expansão é constante e fundamental.
     const expansionRate = this.effectiveLAMBDA * (this.tickCount < 1000 ? 2.0 : 1.0);
+    this.expansionRate = expansionRate;
 
     for (const p of this.activeParticles) {
       // 1. Expansão do Espaço (Λ) - A força superior

@@ -87,6 +87,12 @@ self.onmessage = (e: MessageEvent) => {
   if (!core) return;
 
   switch (type) {
+    case 'START':
+      isRunning = true;
+      break;
+    case 'IGNITE':
+      if (core) core.ignite();
+      break;
     case 'OBSERVE':
       core.observe(payload.x, payload.y, payload.radius);
       break;

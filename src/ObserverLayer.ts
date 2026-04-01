@@ -103,8 +103,12 @@ export class ObserverLayer {
     if (savedState) {
       this.worker.postMessage({ type: 'RESET', payload: { particles: savedState.state.particles.length } });
     }
-    
+  }
+
+  public init() {
+    this.isObserving = true;
     this.worker.postMessage({ type: 'START' });
+    this.worker.postMessage({ type: 'IGNITE' });
   }
 
   public setViewport(v: { x: number, y: number, width: number, height: number, scale: number }) {
@@ -219,7 +223,20 @@ export class ObserverLayer {
     if (snapshot) {
       this.metrics.shannonEntropy = snapshot.shannonEntropy || 0;
       this.metrics.causalityViolations = snapshot.causalityViolations || 0;
-      this.metrics.samplingRate = snapshot.samplingRate || 1.0;
+      
+      // v14.9.6: Automatic Recess (Afastamento Automático)
+      // Ajusta o zoom automático baseado na expansão e densidade de bits
+      const t = snapshot.tick || 1;
+      const expansion = snapshot.expansionRate || 0.0005;
+      const autoZoom = 1 / (1 + Math.log10(1 + t * 0.01) + (expansion * t * 0.5));
+      
+      // Dynamic Zoom-Out baseado na densidade de bits (activeCount)
+      const bitDensity = (snapshot.activeCount || 0) / (snapshot.totalCount || 1);
+      const densityFactor = 1 / (1 + bitDensity * 2);
+      
+      this.metrics.samplingRate = Math.max(0.1, Math.min(1.0, (snapshot.samplingRate || 1.0) * autoZoom * densityFactor));
+      this.worker.postMessage({ type: 'SET_SAMPLING_RATE', payload: this.metrics.samplingRate });
+
       this.metrics.hypervisorLatency = snapshot.hypervisorLatency || 0;
       this.metrics.activeSudoAlerts = snapshot.activeSudoAlerts || [];
       this.metrics.sinodoLog = snapshot.sinodoLog || [];
