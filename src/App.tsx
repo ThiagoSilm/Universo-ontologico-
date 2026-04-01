@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, ShieldAlert, Maximize, Activity, Zap, Users } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Maximize, Activity, Zap, Users, ChevronRight, ChevronLeft, Eye } from 'lucide-react';
 import { UniverseState, Particle } from './types';
 import { AudioEngine } from './AudioEngine';
 import { ObserverLayer } from './ObserverLayer';
@@ -231,166 +231,181 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
 //  APP
 // ═══════════════════════════════════════════════════════════════════
 
-const TelemetryTerminal = ({ state }: { state: UniverseState }) => {
+const TelemetryTerminal = ({ state, collapsed, onToggle }: { state: UniverseState, collapsed: boolean, onToggle: () => void }) => {
   return (
-    <div className="fixed top-4 right-4 w-80 bg-black/80 border border-cyan-900/50 p-4 font-mono text-[10px] text-cyan-400/80 backdrop-blur-md z-50 pointer-events-none">
-      <div className="flex justify-between items-center border-b border-cyan-900/50 pb-2 mb-2">
-        <div className="flex items-center gap-2">
-          <Activity size={12} className="text-cyan-400" />
-          <span className="text-cyan-400 font-bold">UNIVERSE_SIMULATOR_V14.9</span>
-        </div>
-        <span className="animate-pulse">● TELEMETRY_ACTIVE</span>
-      </div>
+    <div className={`fixed top-4 right-4 ${collapsed ? 'w-10 h-10' : 'w-80'} bg-black/80 border border-cyan-900/50 p-2 transition-all duration-500 font-mono text-[10px] text-cyan-400/80 backdrop-blur-md z-50 pointer-events-auto`}>
+      <button 
+        onClick={onToggle}
+        className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-cyan-900/80 border border-cyan-400/30 rounded-full flex items-center justify-center text-cyan-400 hover:bg-cyan-400 hover:text-black transition-colors"
+      >
+        {collapsed ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+      </button>
 
-      {/* 1. Entropy Dashboard */}
-      <div className="mb-4">
-        <div className="flex justify-between mb-1">
-          <span>SHANNON_ENTROPY (H)</span>
-          <span className="text-white">{(state.shannonEntropy || 0).toFixed(4)} bits</span>
+      {collapsed ? (
+        <div className="flex items-center justify-center h-full w-full opacity-50">
+          <Activity size={16} />
         </div>
-        <div className="w-full h-1 bg-cyan-900/30 overflow-hidden">
-          <div 
-            className="h-full bg-cyan-400 transition-all duration-300" 
-            style={{ width: `${Math.min(100, (state.shannonEntropy || 0) * 20)}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-1 text-[8px] opacity-50">
-          <span>∂S/∂t FLUXO: {(state.entropyFlux || 0).toFixed(6)}</span>
-          <span>K(s) INDEX: {((state.shannonEntropy || 0) * 1.2).toFixed(2)}</span>
-        </div>
-      </div>
-
-      {/* 1.5 Homeostasis & Hard Lock (v14.9) */}
-      <div className="mb-4">
-        <div className="flex justify-between mb-1">
-          <span className={state.isHardLocked ? "text-amber-400 font-bold" : "text-cyan-400/50"}>
-            {state.isHardLocked ? "ESTADO_CANÔNICO (SHABBAT)" : "HOMEOSTASE_GLOBAL"}
-          </span>
-          <span className="text-white">{((state.globalHomeostasis || 0) * 100).toFixed(0)}%</span>
-        </div>
-        <div className="w-full h-1 bg-cyan-900/30 overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-300 ${state.isHardLocked ? 'bg-amber-400' : 'bg-cyan-600'}`} 
-            style={{ width: `${(state.globalHomeostasis || 0) * 100}%` }}
-          />
-        </div>
-        {state.isHardLocked && (
-          <div className="text-[7px] mt-1 text-amber-500 animate-pulse">
-            HARD_LOCK_ACTIVE: INPUT_BUFFER_DISABLED
-          </div>
-        )}
-      </div>
-
-      {/* 2. Minkowski Monitor */}
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <div className="border border-cyan-900/30 p-1">
-          <div className="opacity-50">CAUSALITY_VIOLATIONS</div>
-          <div className={state.causalityViolations && state.causalityViolations > 0 ? "text-red-500 font-bold" : "text-green-500"}>
-            {state.causalityViolations || 0}
-          </div>
-        </div>
-        <div className="border border-cyan-900/30 p-1">
-          <div className="opacity-50">HYPERVISOR_LATENCY</div>
-          <div className="text-white">{(state.hypervisorLatency || 0).toFixed(2)}ms</div>
-        </div>
-      </div>
-
-      {/* 3. Phase Parity (Oscilloscope) */}
-      <div className="mb-4 h-12 border border-cyan-900/30 relative overflow-hidden bg-cyan-950/10">
-        <div className="absolute inset-0 flex items-center justify-center opacity-10">
-          <div className="w-full h-[1px] bg-cyan-400" />
-        </div>
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none">
-          <path
-            d={`M 0 20 Q 25 ${20 + (state.phaseParity || 0) * 15} 50 20 T 100 20`}
-            fill="none"
-            stroke="rgba(0, 255, 255, 0.5)"
-            strokeWidth="1"
-          />
-        </svg>
-        <div className="absolute top-1 left-1 text-[7px] opacity-50">PHASE_PARITY_OSC</div>
-      </div>
-
-      {/* 4. Sínodo Log (Façamos) */}
-      <div className="mb-4">
-        <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30 flex justify-between">
-          <span>LOG_DE_SÍNODO</span>
-          <span>v14.9_CONSENSUS</span>
-        </div>
-        <div className="h-16 overflow-hidden flex flex-col-reverse text-[8px]">
-          {state.sinodoLog?.map((log, i) => (
-            <div key={i} className="mb-0.5 opacity-80 border-l border-cyan-900/50 pl-1">
-              <span className="text-cyan-600">[{log.tick}]</span> {log.message}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Sudo Alerts */}
-      <AnimatePresence>
-        {state.activeSudoAlerts?.map((alert) => (
-          <motion.div
-            key={alert.id + alert.tick}
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -20, opacity: 0 }}
-            className="bg-red-900/20 border border-red-500/50 p-2 mb-2 text-red-400"
-          >
+      ) : (
+        <div className="overflow-y-auto max-h-[80vh] custom-scrollbar pr-1">
+          <div className="flex justify-between items-center border-b border-cyan-900/50 pb-2 mb-2">
             <div className="flex items-center gap-2">
-              <ShieldAlert size={10} />
-              <span className="font-bold uppercase tracking-tighter text-[9px]">Sudo Escalation Detected</span>
+              <Activity size={12} className="text-cyan-400" />
+              <span className="text-cyan-400 font-bold">UNIVERSE_SIMULATOR_V14.9.3</span>
             </div>
-            <div className="text-[7px] mt-1 opacity-70">PID: {alert.id.slice(0, 8)} | ADDR: 0x{alert.tick.toString(16)}</div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
+            <span className="animate-pulse">● TELEMETRY_ACTIVE</span>
+          </div>
 
-      {/* 6. Fluxo de Bit (Raw Data) */}
-      <div className="mb-4">
-        <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30">FLUXO_DE_BIT (SINAL_PRIMÁRIO)</div>
-        <div className="flex gap-1 h-4 items-center">
-          {Array.from({ length: 24 }).map((_, i) => (
-            <div 
-              key={i} 
-              className={`w-1 bg-cyan-400 transition-all duration-75`}
-              style={{ 
-                opacity: Math.random() > 0.5 ? 0.8 : 0.2,
-                height: `${Math.random() * 100}%`
-              }}
-            />
-          ))}
-        </div>
-      </div>
+          {/* 1. Entropy Dashboard */}
+          <div className="mb-4">
+            <div className="flex justify-between mb-1">
+              <span>SHANNON_ENTROPY (H)</span>
+              <span className="text-white">{(state.shannonEntropy || 0).toFixed(4)} bits</span>
+            </div>
+            <div className="w-full h-1 bg-cyan-900/30 overflow-hidden">
+              <div 
+                className="h-full bg-cyan-400 transition-all duration-300" 
+                style={{ width: `${Math.min(100, (state.shannonEntropy || 0) * 20)}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1 text-[8px] opacity-50">
+              <span>∂S/∂t FLUXO: {(state.entropyFlux || 0).toFixed(6)}</span>
+              <span>K(s) INDEX: {((state.shannonEntropy || 0) * 1.2).toFixed(2)}</span>
+            </div>
+          </div>
 
-      {/* 7. Mapa de Tipos (Evolução) */}
-      <div className="mb-2">
-        <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30">MAPA_DE_TIPOS (ESPÉCIES)</div>
-        <div className="flex flex-wrap gap-1 text-[7px]">
-          <span className="text-white border border-cyan-900/50 px-1">PHOTON</span>
-          <span className="text-white border border-cyan-900/50 px-1">QUARK</span>
-          {state.organicCount > 0 && <span className="text-green-400 border border-green-900/50 px-1">ORGANIC</span>}
-          {state.lifeCount > 0 && <span className="text-yellow-400 border border-yellow-900/50 px-1">DISSIPATIVE</span>}
-          {state.collectiveConsciousnessNodes > 0 && <span className="text-cyan-400 border border-cyan-400/50 px-1 font-bold">AGENT_ROOT</span>}
-          {state.isHardLocked && <span className="text-amber-400 border border-amber-400/50 px-1 font-bold">CANONICAL</span>}
-        </div>
-      </div>
+          {/* 1.5 Homeostasis & Hard Lock (v14.9) */}
+          <div className="mb-4">
+            <div className="flex justify-between mb-1">
+              <span className={state.isHardLocked ? "text-amber-400 font-bold" : "text-cyan-400/50"}>
+                {state.isHardLocked ? "ESTADO_CANÔNICO (SHABBAT)" : "HOMEOSTASE_GLOBAL"}
+              </span>
+              <span className="text-white">{((state.globalHomeostasis || 0) * 100).toFixed(0)}%</span>
+            </div>
+            <div className="w-full h-1 bg-cyan-900/30 overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${state.isHardLocked ? 'bg-amber-400' : 'bg-cyan-600'}`} 
+                style={{ width: `${(state.globalHomeostasis || 0) * 100}%` }}
+              />
+            </div>
+            {state.isHardLocked && (
+              <div className="text-[7px] mt-1 text-amber-500 animate-pulse">
+                HARD_LOCK_ACTIVE: INPUT_BUFFER_DISABLED
+              </div>
+            )}
+          </div>
 
-      {/* 8. Matriz de Estado Terminal (v14.9) */}
-      <div className="mt-4 border-t border-red-900/50 pt-2">
-        <div className="text-[8px] text-red-500/70 mb-2 font-bold uppercase tracking-widest">
-          MATRIZ_DE_ESTADO_TERMINAL (v14.9)
+          {/* 2. Minkowski Monitor */}
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="border border-cyan-900/30 p-1">
+              <div className="opacity-50 text-[8px]">CAUSALITY_VIOLATIONS</div>
+              <div className={state.causalityViolations && state.causalityViolations > 0 ? "text-red-500 font-bold" : "text-green-500"}>
+                {state.causalityViolations || 0}
+              </div>
+            </div>
+            <div className="border border-cyan-900/30 p-1">
+              <div className="opacity-50 text-[8px]">HYPERVISOR_LATENCY</div>
+              <div className="text-white">{(state.hypervisorLatency || 0).toFixed(2)}ms</div>
+            </div>
+          </div>
+
+          {/* 3. Phase Parity (Oscilloscope) */}
+          <div className="mb-4 h-12 border border-cyan-900/30 relative overflow-hidden bg-cyan-950/10">
+            <div className="absolute inset-0 flex items-center justify-center opacity-10">
+              <div className="w-full h-[1px] bg-cyan-400" />
+            </div>
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none">
+              <path
+                d={`M 0 20 Q 25 ${20 + (state.phaseParity || 0) * 15} 50 20 T 100 20`}
+                fill="none"
+                stroke="rgba(0, 255, 255, 0.5)"
+                strokeWidth="1"
+              />
+            </svg>
+            <div className="absolute top-1 left-1 text-[7px] opacity-50">PHASE_PARITY_OSC</div>
+          </div>
+
+          {/* 4. Sínodo Log (Façamos) */}
+          <div className="mb-4">
+            <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30 flex justify-between">
+              <span>LOG_DE_SÍNODO</span>
+              <span>v14.9_CONSENSUS</span>
+            </div>
+            <div className="h-16 overflow-hidden flex flex-col-reverse text-[8px]">
+              {state.sinodoLog?.map((log, i) => (
+                <div key={i} className="mb-0.5 opacity-80 border-l border-cyan-900/50 pl-1">
+                  <span className="text-cyan-600">[{log.tick}]</span> {log.message}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Sudo Alerts */}
+          <AnimatePresence>
+            {state.activeSudoAlerts?.map((alert) => (
+              <motion.div
+                key={alert.id + alert.tick}
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                className="bg-red-900/20 border border-red-500/50 p-2 mb-2 text-red-400"
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={10} />
+                  <span className="font-bold uppercase tracking-tighter text-[9px]">Sudo Escalation Detected</span>
+                </div>
+                <div className="text-[7px] mt-1 opacity-70">PID: {alert.id.slice(0, 8)} | ADDR: 0x{alert.tick.toString(16)}</div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* 6. Fluxo de Bit (Raw Data) */}
+          <div className="mb-4">
+            <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30">FLUXO_DE_BIT (SINAL_PRIMÁRIO)</div>
+            <div className="flex gap-1 h-4 items-center">
+              {Array.from({ length: 24 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`w-1 bg-cyan-400 transition-all duration-75`}
+                  style={{ 
+                    opacity: Math.random() > 0.5 ? 0.8 : 0.2,
+                    height: `${Math.random() * 100}%`
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 7. Mapa de Tipos (Evolução) */}
+          <div className="mb-2">
+            <div className="text-cyan-400/50 mb-1 border-b border-cyan-900/30">MAPA_DE_TIPOS (ESPÉCIES)</div>
+            <div className="flex flex-wrap gap-1 text-[7px]">
+              <span className="text-white border border-cyan-900/50 px-1">PHOTON</span>
+              <span className="text-white border border-cyan-900/50 px-1">QUARK</span>
+              {state.organicCount > 0 && <span className="text-green-400 border border-green-900/50 px-1">ORGANIC</span>}
+              {state.lifeCount > 0 && <span className="text-yellow-400 border border-yellow-900/50 px-1">DISSIPATIVE</span>}
+              {state.collectiveConsciousnessNodes > 0 && <span className="text-cyan-400 border border-cyan-400/50 px-1 font-bold">AGENT_ROOT</span>}
+              {state.isHardLocked && <span className="text-amber-400 border border-amber-400/50 px-1 font-bold">CANONICAL</span>}
+            </div>
+          </div>
+
+          {/* 8. Matriz de Estado Terminal (v14.9) */}
+          <div className="mt-4 border-t border-red-900/50 pt-2">
+            <div className="text-[8px] text-red-500/70 mb-2 font-bold uppercase tracking-widest">
+              MATRIZ_DE_ESTADO_TERMINAL (v14.9)
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[7px] opacity-60">
+              <span className="text-red-400">TEMPORAL_NON_LOCALITY:</span>
+              <span className="text-right">{(100 - (state.hypervisorLatency || 0)).toFixed(2)}% INTEGRITY</span>
+              
+              <span className="text-red-400">CAUSAL_DISCONTINUITY:</span>
+              <span className="text-right">{state.causalityViolations || 0} ERR/TICK</span>
+              
+              <span className="text-red-400">META_STABILITY:</span>
+              <span className="text-right">{state.isHardLocked ? "LOCKED (CANONICAL)" : "DRIFTING"}</span>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[7px] opacity-60">
-          <span className="text-red-400">TEMPORAL_NON_LOCALITY:</span>
-          <span className="text-right">{(100 - (state.hypervisorLatency || 0)).toFixed(2)}% INTEGRITY</span>
-          
-          <span className="text-red-400">CAUSAL_DISCONTINUITY:</span>
-          <span className="text-right">{state.causalityViolations || 0} ERR/TICK</span>
-          
-          <span className="text-red-400">META_STABILITY:</span>
-          <span className="text-right">{state.isHardLocked ? "LOCKED (CANONICAL)" : "DRIFTING"}</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -408,6 +423,32 @@ export default function App() {
   const [focusProgress, setFocusProgress] = useState(0);
   const focusTimerRef = useRef<number | null>(null);
   const mousePosRef = useRef<{x: number, y: number} | null>(null);
+
+  // v14.9.3: UI State
+  const [telemetryCollapsed, setTelemetryCollapsed] = useState(true);
+  const [uiVisible, setUiVisible] = useState(true);
+  const uiTimerRef = useRef<number | null>(null);
+
+  const resetUiTimer = useCallback(() => {
+    setUiVisible(true);
+    if (uiTimerRef.current) window.clearTimeout(uiTimerRef.current);
+    uiTimerRef.current = window.setTimeout(() => {
+      setUiVisible(false);
+    }, 5000); // 5 seconds of idle to hide
+  }, []);
+
+  const handleStartObservation = async () => {
+    setIsObserving(true);
+    if (audioRef.current) {
+      await audioRef.current.init();
+      audioRef.current.resume();
+    }
+    if (mousePosRef.current) {
+      engineRef.current?.setMouseFocus(mousePosRef.current);
+    } else {
+      engineRef.current?.setMouseFocus({ x: 0, y: 0 });
+    }
+  };
 
   useEffect(() => {
     stateRef.current = state;
@@ -529,13 +570,7 @@ export default function App() {
         setFocusProgress(p => {
           if (p >= 100) {
             clearInterval(focusTimerRef.current!);
-            setIsObserving(true);
-            audioRef.current?.init();
-            if (mousePosRef.current) {
-              engineRef.current?.setMouseFocus(mousePosRef.current);
-            } else {
-              engineRef.current?.setMouseFocus({ x: 0, y: 0 }); // Fallback para o centro
-            }
+            // setIsObserving(true); // v14.9.3: Removed auto-start
             return 100;
           }
           return p + 3.33;
@@ -549,6 +584,7 @@ export default function App() {
 
   // UX: Mouse Focus Tracking
   const handleMouseMove = (e: React.MouseEvent) => {
+    resetUiTimer();
     if (document.hidden || stateRef.current?.isHardLocked) return;
 
     const canvas = canvasRef.current;
@@ -629,25 +665,40 @@ export default function App() {
         style={{ filter: `blur(${blurAmount}px)` }}
       />
 
-      {/* UX: Estado de Observação Zero - Overlay */}
       <AnimatePresence>
         {!isObserving && (
           <motion.div 
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 2 } }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none bg-black/50"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm"
           >
             <div className="text-[10px] uppercase tracking-[0.5em] opacity-50 mb-8">
-              [LATENTE]
+              [ONTOLOGIA_LATENTE]
             </div>
-            <div className="w-64 h-px bg-white/10 relative overflow-hidden">
-              <motion.div 
-                className="absolute inset-y-0 left-0 bg-white/50"
-                style={{ width: `${focusProgress}%` }}
-              />
+            
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+              <button 
+                onClick={handleStartObservation}
+                disabled={focusProgress < 100}
+                className={`relative px-8 py-4 border ${focusProgress < 100 ? 'border-white/10 text-white/20 cursor-not-allowed' : 'border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black'} transition-all duration-500 uppercase tracking-[0.3em] text-[10px] font-bold overflow-hidden`}
+              >
+                <div className="relative z-10 flex items-center gap-3">
+                  <Eye size={14} />
+                  {focusProgress < 100 ? 'Sincronizando...' : 'Iniciar Observação'}
+                </div>
+                {focusProgress < 100 && (
+                  <div 
+                    className="absolute bottom-0 left-0 h-0.5 bg-white/30 transition-all duration-100"
+                    style={{ width: `${focusProgress}%` }}
+                  />
+                )}
+              </button>
             </div>
-            <div className="text-[8px] uppercase tracking-widest opacity-30 mt-4">
-              Mantenha o foco para instanciar a observação
+
+            <div className="text-[8px] uppercase tracking-widest opacity-30 mt-8 max-w-xs text-center leading-relaxed">
+              O som do universo requer o consentimento do observador.<br/>
+              Aguarde a estabilização do manifold para acoplar.
             </div>
           </motion.div>
         )}
@@ -657,10 +708,21 @@ export default function App() {
       <AnimatePresence>
         {isObserving && state && (
           <>
-            <TelemetryTerminal state={state} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: uiVisible ? 1 : 0 }}
+              transition={{ duration: 1 }}
+            >
+              <TelemetryTerminal 
+                state={state} 
+                collapsed={telemetryCollapsed} 
+                onToggle={() => setTelemetryCollapsed(!telemetryCollapsed)} 
+              />
+            </motion.div>
+            
             <motion.div 
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              animate={{ opacity: uiVisible ? 1 : 0 }}
               transition={{ duration: 2 }}
               className="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 z-10"
             >
