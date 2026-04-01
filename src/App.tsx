@@ -41,20 +41,20 @@ function renderUniverse(ctx: CanvasRenderingContext2D, w: number, h: number, sta
   const cy = h / 2;
 
   // v14.9.6: Recessão de Perspectiva Logarítmica (Buffer de Escala Invariante)
-  // À medida que o universo cresce, a câmera recua para manter a densidade constante.
-  const t = state.tick || 1;
-  const logRecession = 1 / (1 + Math.log10(1 + t * 0.01));
+  // v15.9: Âncora Temporal - Se Ticks = 0, a escala é unitária e estática.
+  const t = state.tick || 0;
+  const logRecession = t === 0 ? 1 : 1 / (1 + Math.log10(1 + t * 0.01));
   
   // Vincular o Z-axis ao Vetor de Expansão (Câmera de Inércia)
-  // O observador é expelido para trás pela pressão da criação.
-  const expansion = state.expansionRate || 0.0005;
-  const inertialRecess = 1 / (1 + (expansion * t * 0.5));
+  const expansion = state.expansionRate || 0;
+  const inertialRecess = t === 0 ? 1 : 1 / (1 + (expansion * t * 0.5));
   
   const combinedAutoZoom = logRecession * inertialRecess;
   const userZoom = state.zoom || 1;
   
   // Escala final: Combina a métrica euclidiana com o Minkowski Dinâmico
-  const scale = (Math.min(w, h) / 1000) * userZoom * combinedAutoZoom;
+  // v15.9: Hard-Link Causal - Se Ticks = 0, o zoom é fixo no centro.
+  const scale = t === 0 ? (Math.min(w, h) / 1000) : (Math.min(w, h) / 1000) * userZoom * combinedAutoZoom;
   if (!Number.isFinite(scale) || scale <= 0) return;
 
   const toX = (x: number) => cx + x * scale;
@@ -884,6 +884,7 @@ export default function App() {
                 {/* Gráfico de Persistência (Simulado com barras) */}
                 <div className="flex items-end justify-end gap-[2px] h-12">
                   {Array.from({ length: 20 }).map((_, i) => {
+                    const persistenceRatio = (state?.globalPersistence || 0) / 10.20;
                     const h = Math.random() * 100 * persistenceRatio;
                     return (
                       <div 

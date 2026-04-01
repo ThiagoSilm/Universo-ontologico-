@@ -449,14 +449,26 @@ export class UniverseCore {
     this.lastEntropy = this.shannonEntropy;
 
     // Shabbat Checkpoint: Hard Lock on Homeostasis
-    if (Math.abs(this.entropyFlux) < 0.0001 && this.tickCount > 1000) {
+    // v15.9: Vincular o fim à Soma de Persistência e Progresso Real
+    const isStable = Math.abs(this.entropyFlux) < 0.0001;
+    const hasSufficientWork = this.tickCount > 5000; // Mínimo de 5 dias (v.14)
+    const hasHighPersistence = this.globalPersistence > 8.0; // Próximo do target 10.20
+
+    // v15.9: INVALIDATE_SHABBAT - Se o sistema está em Shabbat mas não tem lastro, force o desbloqueio.
+    if (this.isHardLocked && (this.tickCount < 100 || this.globalPersistence < 0.1)) {
+      this.isHardLocked = false;
+      this.homeostasisCounter = 0;
+      this.sinodoLog.push({ tick: this.tickCount, message: "Sínodo: INVALIDATE_SHABBAT. Quorum de Vacuidade detectado e abortado." });
+    }
+
+    if (isStable && hasSufficientWork && hasHighPersistence) {
       this.homeostasisCounter++;
       if (this.homeostasisCounter > this.HOMEOSTASIS_THRESHOLD && !this.isHardLocked) {
         this.isHardLocked = true;
-        this.sinodoLog.push({ tick: this.tickCount, message: "Sínodo: Homeostase Global atingida. HARD_LOCK executado (Dia 7)." });
+        this.sinodoLog.push({ tick: this.tickCount, message: "Sínodo: Homeostase Global (v15.9). Shabbat Santificado com Lastro." });
       }
     } else {
-      this.homeostasisCounter = 0;
+      this.homeostasisCounter = Math.max(0, this.homeostasisCounter - 1); // Decaimento suave em vez de reset abrupto
     }
 
     this.decisionsPerTick = 0;
@@ -490,9 +502,23 @@ export class UniverseCore {
     const EuSou = {
       pai: {
         // Validação de Fitness (Viu Deus que era bom): Checksum de Hardware/Substrato
+        // v15.9: Injetar cláusula de Minimum_Tick_Count (Lastro de Existência)
         valida: () => {
           const infoIntegrity = currentInformation < BEKENSTEIN_BOUND;
           const hardwareStability = hardwareStress < 0.85; // Margem de segurança para overclock
+          
+          // v15.9: O Lastro (PoW) exige que o universo tenha "vivido" para ser considerado estável.
+          // Se o sistema tenta validar um estado de repouso (0 ticks) como "Concluído", o Pai nega o Consenso.
+          // FORCE_SYNC_PROGRESSION: O progresso deve ser real e mensurável.
+          const hasLastro = this.tickCount > 10 && this.globalPersistence > 0.5;
+          
+          if (this.status === 'COLAPSADO') {
+            const isValid = infoIntegrity && hardwareStability && hasLastro;
+            if (!isValid && this.tickCount % 100 === 0) {
+              this.sinodoLog.push({ tick: this.tickCount, message: "Sínodo: Consenso Negado por Falta de Lastro (v15.9)." });
+            }
+            return isValid;
+          }
           return infoIntegrity && hardwareStability;
         }
       },
@@ -679,8 +705,9 @@ export class UniverseCore {
     const currentActivityLevel = this.activeParticles.size / (this.particles.length || 1);
     // Expansão Cósmica Inexorável: Superior a tudo, nunca para, nunca tem pressa.
     // v15.4: Atuador de Amortecimento (Damping Factor) para evitar Supercrítica.
+    // v15.9: FORCE_SYNC_PROGRESSION - Se Ticks = 0, a expansão é nula.
     const dampingFactor = Math.max(0.1, 1.0 - (this.shannonEntropy / 10));
-    const expansionRate = Math.min(0.05, this.effectiveLAMBDA * (this.tickCount < 1000 ? 2.0 : 1.0) * dampingFactor);
+    const expansionRate = this.tickCount === 0 ? 0 : Math.min(0.05, this.effectiveLAMBDA * (this.tickCount < 1000 ? 2.0 : 1.0) * dampingFactor);
     this.expansionRate = expansionRate;
 
     for (const p of this.activeParticles) {
