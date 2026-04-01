@@ -690,9 +690,7 @@ export default function App() {
     }
   };
 
-  // Blur effect based on persistence
   const persistenceRatio = Math.max(0, Math.min(1, (state?.globalPersistence || 0) / 10.20));
-  const blurAmount = isObserving && state?.status === 'COLAPSADO' ? (1 - persistenceRatio) * 10 : 0;
 
   return (
     <div 
@@ -706,7 +704,7 @@ export default function App() {
         width={typeof window !== 'undefined' ? window.innerWidth : 800}
         height={typeof window !== 'undefined' ? window.innerHeight : 600}
         className="absolute inset-0 z-0 transition-all duration-1000"
-        style={{ filter: `blur(${blurAmount}px)` }}
+        style={{ filter: 'none !important', isolation: 'isolate' }}
       />
 
       <AnimatePresence>
@@ -714,7 +712,7 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 2 } }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80"
           >
             <div className="text-[10px] uppercase tracking-[0.5em] opacity-50 mb-8">
               [ONTOLOGIA_LATENTE]
